@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚗 Fuel Route Optimizer</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0;overflow:hidden;}
+
+        .header{background:linear-gradient(135deg,#1e3a5f,#0f172a);padding:12px 28px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #1e40af;height:60px;}
+        .header h1{font-size:1.4rem;color:#60a5fa;}
+        .header p{color:#94a3b8;font-size:0.75rem;}
+        .badges{display:flex;gap:5px;}
+        .badge{background:#1e40af;color:#93c5fd;padding:3px 9px;border-radius:20px;font-size:0.68rem;font-weight:bold;}
+
+        /* TAB BAR */
+        .tab-bar{display:flex;background:#0f172a;border-bottom:1px solid #334155;padding:0 16px;position:relative;z-index:10;}
+        .tab{padding:8px 16px;font-size:0.78rem;font-weight:600;color:#64748b;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;white-space:nowrap;margin-bottom:-1px;}
+        .tab.active{color:#60a5fa;border-bottom:2px solid #3b82f6;background:#0f172a;}
+        .tab:hover{color:#94a3b8;}
+
+        .main{display:flex;height:calc(100vh - 96px);}
+
+        /* SIDEBAR */
+        .sidebar{width:360px;background:#1e293b;padding:14px;overflow-y:auto;border-right:1px solid #334155;flex-shrink:0;}
+        .section-title{font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin:12px 0 7px;padding-bottom:4px;border-bottom:1px solid #334155;}
+        .quick-routes{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px;}
+        .quick-btn{background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:3px 8px;border-radius:5px;font-size:0.68rem;cursor:pointer;transition:all 0.2s;}
+        .quick-btn:hover{border-color:#3b82f6;color:#60a5fa;background:#1e3a5f;}
+        .form-group{margin-bottom:10px;}
+        .form-group label{display:block;color:#94a3b8;font-size:0.72rem;margin-bottom:4px;font-weight:600;text-transform:uppercase;}
+        .form-group input{width:100%;padding:8px 11px;background:#0f172a;border:1px solid #334155;border-radius:7px;color:#e2e8f0;font-size:0.85rem;}
+        .form-group input:focus{outline:none;border-color:#3b82f6;}
+        .btn-plan{width:100%;padding:10px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:white;border:none;border-radius:7px;font-size:0.88rem;font-weight:700;cursor:pointer;transition:all 0.2s;margin-top:4px;}
+        .btn-plan:hover{background:linear-gradient(135deg,#3b82f6,#2563eb);transform:translateY(-1px);box-shadow:0 4px 12px rgba(37,99,235,0.4);}
+        .btn-plan:disabled{opacity:0.6;cursor:not-allowed;transform:none;}
+        .loading{display:none;text-align:center;padding:12px;color:#60a5fa;}
+        .spinner{width:30px;height:30px;border:3px solid #334155;border-top-color:#3b82f6;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 7px;}
+        @keyframes spin{to{transform:rotate(360deg);}}
+        .results{display:none;}
+        .summary-cards{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0;}
+        .card{background:#0f172a;border:1px solid #334155;border-radius:7px;padding:9px;text-align:center;}
+        .card .value{font-size:1.05rem;font-weight:800;color:#60a5fa;}
+        .card .label{font-size:0.6rem;color:#64748b;margin-top:2px;text-transform:uppercase;}
+        .card.green .value{color:#34d399;}.card.orange .value{color:#fb923c;}.card.purple .value{color:#a78bfa;}
+        .stop-card{background:#0f172a;border:1px solid #334155;border-radius:7px;padding:9px;margin-bottom:6px;position:relative;overflow:hidden;cursor:pointer;transition:border-color 0.2s;}
+        .stop-card:hover{border-color:#3b82f6;}.stop-card.active{border-color:#f97316;box-shadow:0 0 0 1px #f97316;}
+        .stop-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#3b82f6;}
+        .stop-num-badge{background:#1e40af;color:#93c5fd;width:19px;height:19px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:700;margin-bottom:4px;}
+        .stop-name{font-weight:700;font-size:0.82rem;color:#e2e8f0;}
+        .stop-loc{color:#64748b;font-size:0.7rem;margin:2px 0 4px;}
+        .stop-details{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-top:4px;}
+        .stop-detail{background:#1e293b;border-radius:4px;padding:5px;text-align:center;}
+        .stop-detail .val{font-size:0.78rem;font-weight:700;color:#60a5fa;}
+        .stop-detail .lbl{font-size:0.56rem;color:#64748b;text-transform:uppercase;}
+        .tank-bar{background:#1e293b;border-radius:3px;height:5px;margin-top:6px;overflow:hidden;}
+        .tank-fill{height:100%;border-radius:3px;transition:width 0.8s ease;}
+        .tank-lbl{font-size:0.6rem;color:#64748b;margin-top:2px;}
+        .alternatives{margin-top:6px;padding-top:6px;border-top:1px solid #1e293b;}
+        .alt-title{font-size:0.6rem;color:#64748b;margin-bottom:3px;}
+        .alt-item{display:flex;justify-content:space-between;font-size:0.66rem;color:#94a3b8;padding:2px 0;}
+        .alt-price{color:#fb923c;font-weight:600;}
+        .error-box{display:none;background:#450a0a;border:1px solid #991b1b;border-radius:7px;padding:9px;color:#fca5a5;margin-top:9px;font-size:0.8rem;}
+        .api-links{margin-top:12px;padding-top:10px;border-top:1px solid #334155;}
+        .api-link{display:flex;align-items:center;gap:5px;color:#60a5fa;text-decoration:none;font-size:0.7rem;padding:3px 0;}
+        .api-link:hover{color:#93c5fd;}
+        .proc-time{text-align:right;font-size:0.6rem;color:#475569;margin-top:4px;}
+
+        /* MAP AREA */
+        .map-area{flex:1;position:relative;background:#060e1a;overflow:hidden;}
+
+        /* TAB PANELS */
+        .panel{display:none;width:100%;height:100%;}
+        .panel.active{display:flex;flex-direction:column;}
+
+        /* MAP PANEL */
+        #mapPanel{position:relative;}
+        #usa-map{width:100%;height:100%;cursor:grab;}
+        #usa-map:active{cursor:grabbing;}
+
+        .zoom-controls{position:absolute;top:50%;right:12px;transform:translateY(-50%);display:flex;flex-direction:column;gap:3px;z-index:20;}
+        .zoom-btn{width:28px;height:28px;background:rgba(15,23,42,0.92);border:1px solid #334155;border-radius:5px;color:#94a3b8;font-size:0.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;}
+        .zoom-btn:hover{background:#1e3a5f;color:#60a5fa;border-color:#3b82f6;}
+
+        .map-info-bar{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,0.92);border:1px solid #334155;border-radius:7px;padding:5px 14px;font-size:0.7rem;color:#94a3b8;text-align:center;pointer-events:none;white-space:nowrap;}
+
+        .map-legend{position:absolute;bottom:14px;right:48px;background:rgba(15,23,42,0.92);border:1px solid #334155;border-radius:7px;padding:9px 12px;z-index:10;font-size:0.7rem;}
+        .legend-item{display:flex;align-items:center;gap:6px;margin-bottom:4px;color:#94a3b8;}
+        .legend-dot{width:9px;height:9px;border-radius:50%;}
+
+        .tooltip{position:absolute;background:rgba(15,23,42,0.97);border:1px solid #3b82f6;border-radius:7px;padding:9px 12px;font-size:0.72rem;color:#e2e8f0;pointer-events:none;z-index:100;max-width:220px;line-height:1.6;box-shadow:0 8px 24px rgba(0,0,0,0.6);}
+        .tooltip b{color:#60a5fa;}
+        .tooltip hr{border-color:#334155;margin:4px 0;}
+
+        /* CHART PANEL */
+        #chartPanel{padding:20px;overflow-y:auto;background:#0f172a;}
+        .chart-header{margin-bottom:16px;}
+        .chart-header h2{font-size:1rem;color:#60a5fa;margin-bottom:4px;}
+        .chart-header p{font-size:0.75rem;color:#64748b;}
+        .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;height:calc(100% - 80px);}
+        .chart-box{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px;}
+        .chart-box h3{font-size:0.78rem;color:#94a3b8;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;}
+        .chart-empty{display:flex;align-items:center;justify-content:center;height:100%;color:#475569;font-size:0.85rem;text-align:center;}
+
+        /* HEATMAP PANEL */
+        #heatmapPanel{padding:16px;overflow-y:auto;background:#0f172a;position:relative;}
+        .heatmap-header{margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;}
+        .heatmap-header h2{font-size:0.95rem;color:#60a5fa;}
+        .heatmap-legend-bar{display:flex;align-items:center;gap:8px;font-size:0.68rem;color:#64748b;}
+        .heatmap-grad{width:120px;height:10px;border-radius:5px;background:linear-gradient(90deg,#22c55e,#eab308,#ef4444);}
+        #heatmapSvg{width:100%;border-radius:10px;}
+
+        /* RANKING PANEL */
+        #rankingPanel{padding:16px;overflow-y:auto;background:#0f172a;}
+        .ranking-header{margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;}
+        .ranking-header h2{font-size:0.95rem;color:#60a5fa;}
+        .rank-search{background:#1e293b;border:1px solid #334155;border-radius:6px;padding:6px 10px;color:#e2e8f0;font-size:0.8rem;width:180px;}
+        .rank-search:focus{outline:none;border-color:#3b82f6;}
+        .rank-table{width:100%;border-collapse:collapse;font-size:0.78rem;}
+        .rank-table th{background:#1e293b;color:#64748b;padding:8px 12px;text-align:left;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.5px;position:sticky;top:0;z-index:5;border-bottom:1px solid #334155;}
+        .rank-table td{padding:7px 12px;border-bottom:1px solid #1e293b;color:#e2e8f0;}
+        .rank-table tr:hover td{background:#1e293b;}
+        .rank-medal{font-size:0.9rem;}
+        .price-bar-wrap{display:flex;align-items:center;gap:6px;}
+        .price-bar{height:6px;border-radius:3px;min-width:4px;}
+        .tag-cheap{background:#166534;color:#4ade80;padding:2px 6px;border-radius:4px;font-size:0.62rem;font-weight:600;}
+        .tag-exp{background:#7f1d1d;color:#f87171;padding:2px 6px;border-radius:4px;font-size:0.62rem;font-weight:600;}
+
+        @keyframes dash{to{stroke-dashoffset:0;}}
+        @keyframes fadeIn{from{opacity:0;transform:scale(0.3);}to{opacity:1;transform:scale(1);}}
+
+        ::-webkit-scrollbar{width:4px;}
+        ::-webkit-scrollbar-track{background:#0f172a;}
+        ::-webkit-scrollbar-thumb{background:#334155;border-radius:2px;}
+    </style>
+</head>
+<body>
+<div class="header">
+    <div>
+        <h1>🚗 Fuel Route Optimizer</h1>
+        <p>Find the cheapest fuel stops across the USA</p>
+    </div>
+    <div class="badges">
+        <span class="badge">500 Mile Range</span>
+        <span class="badge">10 MPG</span>
+        <span class="badge">8000+ Stations</span>
+        <span class="badge">26 Tests ✅</span>
+    </div>
+</div>
+
+<!-- TAB BAR -->
+<div class="tab-bar">
+    <div class="tab active" onclick="switchTab('map')">🗺️ Route Map</div>
+    <div class="tab" onclick="switchTab('heatmap')">🌡️ Price Heatmap</div>
+    <div class="tab" onclick="switchTab('ranking')">🏆 State Rankings</div>
+</div>
+
+<div class="main">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <div class="section-title">Quick Routes</div>
+        <div class="quick-routes">
+            <button class="quick-btn" onclick="setRoute('New York, NY','Los Angeles, CA')">NY → LA</button>
+            <button class="quick-btn" onclick="setRoute('Chicago, IL','Houston, TX')">Chicago → Houston</button>
+            <button class="quick-btn" onclick="setRoute('Miami, FL','Boston, MA')">Miami → Boston</button>
+            <button class="quick-btn" onclick="setRoute('Seattle, WA','San Francisco, CA')">Seattle → SF</button>
+            <button class="quick-btn" onclick="setRoute('Dallas, TX','Phoenix, AZ')">Dallas → Phoenix</button>
+            <button class="quick-btn" onclick="setRoute('Denver, CO','Nashville, TN')">Denver → Nashville</button>
+        </div>
+        <div class="section-title">Plan Your Route</div>
+        <div class="form-group">
+            <label>📍 Start Location</label>
+            <input type="text" id="start" placeholder="e.g. New York, NY"/>
+        </div>
+        <div class="form-group">
+            <label>🏁 Finish Location</label>
+            <input type="text" id="finish" placeholder="e.g. Los Angeles, CA"/>
+        </div>
+        <button class="btn-plan" id="planBtn" onclick="planRoute()">🗺️ Plan Optimal Route</button>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="font-size:0.82rem;">Calculating optimal fuel stops...</p>
+            <p style="font-size:0.7rem;color:#475569;margin-top:2px;">Analyzing 8000+ stations</p>
+        </div>
+        <div class="error-box" id="errorBox"></div>
+
+        <div class="results" id="results">
+            <div class="proc-time" id="procTime"></div>
+            <div class="section-title">Trip Summary</div>
+            <div class="summary-cards">
+                <div class="card"><div class="value" id="sumDistance">-</div><div class="label">Miles</div></div>
+                <div class="card orange"><div class="value" id="sumDuration">-</div><div class="label">Drive Time</div></div>
+                <div class="card green"><div class="value" id="sumCost">-</div><div class="label">Fuel Cost</div></div>
+                <div class="card purple"><div class="value" id="sumSavings">-</div><div class="label">You Save</div></div>
+                <div class="card"><div class="value" id="sumStops">-</div><div class="label">Stops</div></div>
+                <div class="card"><div class="value" id="sumGallons">-</div><div class="label">Gallons</div></div>
+            </div>
+            <div class="section-title">⛽ Fuel Stops <span style="color:#475569;font-size:0.58rem;text-transform:none;font-weight:normal;">(click to highlight)</span></div>
+            <div id="stopsContainer"></div>
+            <div class="api-links">
+                <div class="section-title">API Links</div>
+                <a class="api-link" href="/api/docs/" target="_blank">📖 Swagger Docs</a>
+                <a class="api-link" href="/api/redoc/" target="_blank">📘 ReDoc</a>
+                <a class="api-link" href="/api/health/" target="_blank">❤️ Health Check</a>
+                <a class="api-link" href="/api/fuel-stats/" target="_blank">📊 Fuel Stats</a>
+                <a class="api-link" href="/api/fuel-ranking/" target="_blank">🏆 State Rankings API</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT PANELS -->
+    <div class="map-area">
+
+        <!-- MAP PANEL -->
+        <div class="panel active" id="mapPanel">
+            <div class="map-info-bar" id="mapInfo">Enter locations and click Plan Optimal Route</div>
+            <svg id="usa-map" viewBox="0 0 960 600" preserveAspectRatio="xMidYMid meet">
+                <defs>
+                    <radialGradient id="bgGrad" cx="50%" cy="50%" r="70%">
+                        <stop offset="0%" style="stop-color:#0d1b2e"/><stop offset="100%" style="stop-color:#060e1a"/>
+                    </radialGradient>
+                    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="3" result="cb"/><feMerge><feMergeNode in="cb"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <filter id="mglow" x="-100%" y="-100%" width="300%" height="300%">
+                        <feGaussianBlur stdDeviation="5" result="cb"/><feMerge><feMergeNode in="cb"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                </defs>
+                <rect width="960" height="600" fill="url(#bgGrad)"/>
+                <g stroke="#0d1f35" stroke-width="0.4" opacity="0.4">
+                    <line x1="0" y1="150" x2="960" y2="150"/><line x1="0" y1="300" x2="960" y2="300"/><line x1="0" y1="450" x2="960" y2="450"/>
+                    <line x1="192" y1="0" x2="192" y2="600"/><line x1="384" y1="0" x2="384" y2="600"/><line x1="576" y1="0" x2="576" y2="600"/><line x1="768" y1="0" x2="768" y2="600"/>
+                </g>
+                <g id="states-base" fill="#162840" stroke="#1e3a5f" stroke-width="0.9" stroke-linejoin="round">
+                    <path d="M148,92 L148,165 L175,172 L205,170 L235,162 L258,168 L272,155 L278,138 L268,128 L220,122 Z"/>
+                    <path d="M148,165 L148,238 L152,252 L188,248 L222,248 L258,238 L265,205 L258,168 L235,162 L205,170 L175,172 Z"/>
+                    <path d="M148,252 L152,252 L188,248 L222,248 L238,275 L235,310 L218,348 L198,388 L178,428 L162,435 L145,415 L135,385 L128,335 L130,285 Z"/>
+                    <path d="M222,248 L258,238 L282,248 L288,295 L275,345 L238,360 L218,348 L235,310 L238,275 Z"/>
+                    <path d="M258,168 L265,205 L258,238 L282,248 L308,242 L318,218 L322,182 L315,162 L295,155 L272,155 Z"/>
+                    <path d="M268,128 L278,138 L272,155 L295,155 L315,162 L322,182 L345,182 L385,178 L418,175 L432,162 L440,148 L435,128 Z"/>
+                    <path d="M322,182 L318,218 L308,242 L318,248 L358,252 L402,248 L408,218 L412,182 L385,178 L345,182 Z"/>
+                    <path d="M282,248 L308,242 L318,248 L318,322 L298,322 L288,295 Z"/>
+                    <path d="M238,360 L275,345 L298,322 L318,322 L322,362 L318,405 L308,432 L278,448 L245,452 L218,428 L208,395 L208,360 Z"/>
+                    <path d="M318,248 L358,252 L402,248 L408,322 L368,322 L318,322 Z"/>
+                    <path d="M298,322 L318,322 L368,322 L408,322 L408,408 L322,408 L308,432 L318,405 L322,362 Z"/>
+                    <path d="M440,148 L432,162 L418,175 L452,172 L498,168 L555,165 L562,148 L558,130 Z"/>
+                    <path d="M418,175 L412,182 L408,218 L412,252 L458,255 L502,252 L558,248 L562,215 L558,195 L555,165 L498,168 L452,172 Z"/>
+                    <path d="M412,252 L458,255 L502,252 L558,248 L562,278 L548,292 L485,295 L438,292 L425,275 Z"/>
+                    <path d="M425,275 L438,292 L485,295 L548,292 L552,315 L542,332 L475,335 L432,332 L422,308 Z"/>
+                    <path d="M422,308 L432,332 L475,335 L542,332 L548,355 L545,368 L502,372 L458,368 L418,362 L412,335 Z"/>
+                    <path d="M368,322 L408,322 L408,408 L388,445 L368,458 L342,462 L318,452 L312,432 L308,432 L322,408 L418,362 L412,335 L408,322 Z"/>
+                    <path d="M558,130 L562,148 L555,165 L562,215 L595,215 L635,212 L648,195 L655,175 L652,152 L642,132 Z"/>
+                    <path d="M558,248 L562,215 L595,215 L635,212 L645,232 L638,255 L592,258 L558,255 Z"/>
+                    <path d="M548,292 L558,255 L592,258 L638,255 L645,278 L638,302 L618,318 L578,322 L548,318 L542,332 L548,292 Z"/>
+                    <path d="M542,332 L548,318 L578,322 L618,318 L625,342 L618,362 L582,368 L548,362 L545,368 L542,332 Z"/>
+                    <path d="M545,368 L548,362 L582,368 L598,382 L592,405 L565,412 L542,398 L535,378 Z"/>
+                    <path d="M595,215 L635,212 L648,195 L658,185 L668,195 L665,215 L655,232 L645,232 L638,212 Z"/>
+                    <path d="M648,195 L655,175 L668,168 L685,172 L695,185 L682,198 L668,195 Z"/>
+                    <path d="M592,258 L638,255 L645,278 L642,302 L625,315 L608,305 L595,285 L588,265 Z"/>
+                    <path d="M645,278 L662,275 L672,292 L665,312 L645,315 L638,302 Z"/>
+                    <path d="M662,275 L682,272 L702,282 L708,302 L698,318 L678,322 L665,312 L672,292 Z"/>
+                    <path d="M638,302 L645,315 L665,312 L698,318 L705,332 L685,345 L652,348 L622,342 L618,318 Z"/>
+                    <path d="M618,318 L622,342 L652,348 L685,345 L705,332 L715,348 L698,358 L658,362 L622,358 L602,355 L598,338 Z"/>
+                    <path d="M582,368 L618,362 L622,382 L615,408 L592,415 L572,402 L575,382 Z"/>
+                    <path d="M618,362 L658,362 L662,388 L652,415 L632,422 L612,415 L615,408 L622,382 Z"/>
+                    <path d="M658,362 L698,358 L712,375 L708,402 L692,418 L668,422 L652,415 L662,388 Z"/>
+                    <path d="M652,415 L668,422 L692,418 L708,432 L718,455 L708,475 L685,482 L658,478 L642,462 L638,438 L642,418 Z"/>
+                    <path d="M698,358 L722,352 L742,365 L738,382 L718,388 L705,382 L712,375 Z"/>
+                    <path d="M705,332 L715,322 L748,318 L772,322 L778,335 L762,348 L742,352 L722,352 L715,348 Z"/>
+                    <path d="M705,308 L722,305 L758,302 L782,312 L778,322 L772,322 L748,318 L715,322 L708,318 L698,318 L705,308 Z"/>
+                    <path d="M698,318 L708,318 L715,322 L715,348 L705,348 L705,332 Z"/>
+                    <path d="M702,282 L732,278 L762,275 L778,285 L775,302 L758,302 L722,305 L705,308 L698,308 L708,302 Z"/>
+                    <path d="M735,252 L778,245 L805,255 L808,268 L788,278 L762,275 L732,278 L722,265 Z"/>
+                    <path d="M778,285 L792,282 L798,298 L785,308 L775,302 Z"/>
+                    <path d="M775,302 L785,308 L788,322 L772,328 L762,322 L762,312 L778,302 Z"/>
+                    <path d="M788,252 L815,248 L828,258 L825,272 L808,275 L798,268 L805,255 Z"/>
+                    <path d="M808,235 L828,228 L838,242 L832,258 L815,258 L815,248 Z"/>
+                    <path d="M828,212 L848,208 L858,225 L852,242 L838,242 L828,228 Z"/>
+                    <path d="M55,482 L128,482 L140,512 L132,538 L98,548 L65,538 L50,512 Z"/>
+                    <path d="M172,522 L198,518 L208,532 L198,545 L175,542 Z"/>
+                </g>
+                <g fill="#3a6090" font-family="'Segoe UI',sans-serif" text-anchor="middle" font-size="7">
+                    <text x="180" y="325">CA</text><text x="255" y="300">NV</text><text x="298" y="292">UT</text>
+                    <text x="362" y="290">CO</text><text x="302" y="378">NM</text><text x="284" y="212">ID</text>
+                    <text x="352" y="155">MT</text><text x="365" y="218">WY</text><text x="489" y="278">NE</text>
+                    <text x="485" y="312">KS</text><text x="480" y="348">OK</text><text x="370" y="400">TX</text>
+                    <text x="602" y="195">MN</text><text x="598" y="238">IA</text><text x="592" y="292">MO</text>
+                    <text x="582" y="348">AR</text><text x="562" y="392">LA</text><text x="615" y="288">IL</text>
+                    <text x="652" y="298">IN</text><text x="682" y="302">OH</text><text x="658" y="330">KY</text>
+                    <text x="655" y="342">TN</text><text x="595" y="392">MS</text><text x="632" y="395">AL</text>
+                    <text x="672" y="392">GA</text><text x="672" y="452">FL</text><text x="718" y="378">SC</text>
+                    <text x="735" y="338">NC</text><text x="738" y="318">VA</text><text x="740" y="292">PA</text>
+                    <text x="762" y="262">NY</text><text x="202" y="205">OR</text><text x="205" y="148">WA</text>
+                    <text x="498" y="192">SD</text><text x="498" y="148">ND</text><text x="638" y="195">WI</text>
+                    <text x="675" y="188">MI</text><text x="808" y="262">MA</text><text x="840" y="228">ME</text>
+                    <text x="90" y="518">AK</text><text x="188" y="535">HI</text>
+                </g>
+                <g id="route-layer"></g>
+                <g id="markers-layer"></g>
+            </svg>
+            <div class="zoom-controls">
+                <button class="zoom-btn" onclick="zoomIn()">+</button>
+                <button class="zoom-btn" onclick="zoomReset()">⊙</button>
+                <button class="zoom-btn" onclick="zoomOut()">−</button>
+            </div>
+            <div class="map-legend">
+                <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div>Start</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#ef4444;"></div>Finish</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#f97316;"></div>Fuel Stop</div>
+                <div class="legend-item"><div style="width:16px;height:3px;background:#3b82f6;border-radius:2px;"></div>Route</div>
+            </div>
+            <div class="tooltip" id="tooltip" style="display:none;"></div>
+        </div>
+
+
+        <!-- HEATMAP PANEL -->
+        <div class="panel" id="heatmapPanel">
+            <div class="heatmap-header">
+                <h2>🌡️ Fuel Price Heatmap by State</h2>
+                <div class="heatmap-legend-bar">
+                    <span>Cheap</span><div class="heatmap-grad"></div><span>Expensive</span>
+                </div>
+            </div>
+            <div id="heatmapLoading" style="text-align:center;padding:40px;color:#64748b;">Loading fuel price data...</div>
+            <svg id="heatmapSvg" viewBox="0 0 960 580" style="display:none;"></svg>
+        </div>
+
+        <!-- RANKING PANEL -->
+        <div class="panel" id="rankingPanel">
+            <div class="ranking-header">
+                <h2>🏆 Fuel Price Rankings by State</h2>
+                <input class="rank-search" id="rankSearch" placeholder="🔍 Search state..." oninput="filterRanking()"/>
+            </div>
+            <div id="rankingLoading" style="text-align:center;padding:40px;color:#64748b;">Loading rankings...</div>
+            <div id="rankingTable" style="display:none;">
+                <table class="rank-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th><th>State</th><th>Avg Price</th><th>Price Range</th><th>Stations</th><th>vs Average</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rankingBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// ============================================================
+// STATE & CHART INSTANCES
+// ============================================================
+let lastRouteData = null;
+let rankingData = [];
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function switchTab(name) {
+    document.querySelectorAll('.tab').forEach((t,i) => {
+        const names = ['map','heatmap','ranking'];
+        t.classList.toggle('active', names[i] === name);
+    });
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(name + 'Panel').classList.add('active');
+
+    if (name === 'heatmap' && !window.heatmapLoaded) loadHeatmap();
+    if (name === 'ranking' && !window.rankingLoaded) loadRanking();
+}
+
+// ============================================================
+// MAP LOGIC
+// ============================================================
+function ll2svg(lat, lon) {
+    const W=960,H=600,minLon=-125,maxLon=-65,minLat=24,maxLat=50;
+    return { x:((lon-minLon)/(maxLon-minLon))*W, y:H-((lat-minLat)/(maxLat-minLat))*H };
+}
+let vb={x:0,y:0,w:960,h:600};
+const svg=document.getElementById('usa-map');
+function setVB(){svg.setAttribute('viewBox',`${vb.x.toFixed(1)} ${vb.y.toFixed(1)} ${vb.w.toFixed(1)} ${vb.h.toFixed(1)}`);}
+function zoomIn(){const cx=vb.x+vb.w/2,cy=vb.y+vb.h/2;vb.w*=0.7;vb.h*=0.7;vb.x=cx-vb.w/2;vb.y=cy-vb.h/2;setVB();}
+function zoomOut(){const cx=vb.x+vb.w/2,cy=vb.y+vb.h/2;vb.w=Math.min(vb.w/0.7,960);vb.h=Math.min(vb.h/0.7,600);vb.x=cx-vb.w/2;vb.y=cy-vb.h/2;setVB();}
+function zoomReset(){vb={x:0,y:0,w:960,h:600};setVB();}
+function zoomToRoute(pts){
+    if(!pts.length)return;
+    const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y),pad=80;
+    let x=Math.min(...xs)-pad,y=Math.min(...ys)-pad,w=Math.max(...xs)-x+pad*2,h=Math.max(...ys)-y+pad*2;
+    const asp=960/600;if(w/h>asp)h=w/asp;else w=h*asp;
+    vb={x,y,w,h};setVB();
+}
+let dragging=false,ds={x:0,y:0},vs={};
+svg.addEventListener('mousedown',e=>{dragging=true;ds={x:e.clientX,y:e.clientY};vs={...vb};});
+window.addEventListener('mouseup',()=>dragging=false);
+window.addEventListener('mousemove',e=>{if(!dragging)return;vb.x=vs.x-(e.clientX-ds.x)/svg.clientWidth*vb.w;vb.y=vs.y-(e.clientY-ds.y)/svg.clientHeight*vb.h;setVB();});
+svg.addEventListener('wheel',e=>{e.preventDefault();const r=svg.getBoundingClientRect();const mx=(e.clientX-r.left)/r.width*vb.w+vb.x;const my=(e.clientY-r.top)/r.height*vb.h+vb.y;const f=e.deltaY>0?1.2:0.83;vb.w*=f;vb.h*=f;vb.x=mx-(mx-vb.x)*f;vb.y=my-(my-vb.y)*f;setVB();},{passive:false});
+
+function showTip(e,html){const t=document.getElementById('tooltip');t.innerHTML=html;t.style.display='block';const r=document.getElementById('mapPanel').getBoundingClientRect();let lx=e.clientX-r.left+14,ly=e.clientY-r.top-10;if(lx+230>r.width)lx=e.clientX-r.left-240;t.style.left=lx+'px';t.style.top=ly+'px';}
+function moveTip(e){const t=document.getElementById('tooltip');if(t.style.display==='none')return;const r=document.getElementById('mapPanel').getBoundingClientRect();let lx=e.clientX-r.left+14,ly=e.clientY-r.top-10;if(lx+230>r.width)lx=e.clientX-r.left-240;t.style.left=lx+'px';t.style.top=ly+'px';}
+function hideTip(){document.getElementById('tooltip').style.display='none';}
+function esc(s){return String(s).replace(/"/g,'&quot;');}
+
+function clearMap(){document.getElementById('route-layer').innerHTML='';document.getElementById('markers-layer').innerHTML='';}
+
+function drawMap(data){
+    clearMap();
+    const rl=document.getElementById('route-layer'),ml=document.getElementById('markers-layer');
+    const trip=data.trip,opt=data.fuel_optimization,geo=data.map.route_geometry;
+    let routePts=[];
+    if(geo&&geo.coordinates&&geo.coordinates.length>1){
+        const coords=geo.coordinates,step=Math.max(1,Math.floor(coords.length/300));
+        for(let i=0;i<coords.length;i+=step){routePts.push(ll2svg(coords[i][1],coords[i][0]));}
+        routePts.push(ll2svg(coords[coords.length-1][1],coords[coords.length-1][0]));
+        const pstr=routePts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+        let tlen=0;for(let i=1;i<routePts.length;i++){const dx=routePts[i].x-routePts[i-1].x,dy=routePts[i].y-routePts[i-1].y;tlen+=Math.sqrt(dx*dx+dy*dy);}
+        rl.innerHTML+=`<polyline points="${pstr}" fill="none" stroke="#1d4ed8" stroke-width="10" stroke-opacity="0.15" stroke-linecap="round" stroke-linejoin="round"/>`;
+        rl.innerHTML+=`<polyline points="${pstr}" fill="none" stroke="#2563eb" stroke-width="5" stroke-opacity="0.2" stroke-linecap="round" stroke-linejoin="round"/>`;
+        rl.innerHTML+=`<polyline id="rLine" points="${pstr}" fill="none" stroke="#3b82f6" stroke-width="3" stroke-opacity="0.95" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="${tlen.toFixed(0)}" stroke-dashoffset="${tlen.toFixed(0)}" style="animation:dash 2.5s ease-in-out forwards;"/>`;
+        zoomToRoute(routePts);
+    }
+    setTimeout(()=>{
+        const sp=ll2svg(trip.start.coordinates.lat,trip.start.coordinates.lon);
+        ml.innerHTML+=`<circle cx="${sp.x.toFixed(1)}" cy="${sp.y.toFixed(1)}" r="18" fill="#22c55e" opacity="0"><animate attributeName="r" values="10;20;10" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.4;0.1;0.4" dur="2s" repeatCount="indefinite"/></circle>
+        <circle cx="${sp.x.toFixed(1)}" cy="${sp.y.toFixed(1)}" r="11" fill="#22c55e" stroke="white" stroke-width="2.5" class="map-marker" data-tip="${esc('<b>🚀 Start</b><hr>'+trip.start.display_name+'<br>📏 '+trip.distance_miles+' miles total')}" style="cursor:pointer;filter:url(#mglow);"/>
+        <text x="${sp.x.toFixed(1)}" y="${(sp.y+4).toFixed(1)}" text-anchor="middle" font-size="8" fill="white" font-weight="bold" pointer-events="none">S</text>`;
+        const ep=ll2svg(trip.finish.coordinates.lat,trip.finish.coordinates.lon);
+        ml.innerHTML+=`<circle cx="${ep.x.toFixed(1)}" cy="${ep.y.toFixed(1)}" r="18" fill="#ef4444" opacity="0"><animate attributeName="r" values="10;20;10" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.4;0.1;0.4" dur="2s" repeatCount="indefinite"/></circle>
+        <circle cx="${ep.x.toFixed(1)}" cy="${ep.y.toFixed(1)}" r="11" fill="#ef4444" stroke="white" stroke-width="2.5" class="map-marker" data-tip="${esc('<b>🏁 Finish</b><hr>'+trip.finish.display_name+'<br>⏱️ '+trip.estimated_duration)}" style="cursor:pointer;filter:url(#mglow);"/>
+        <text x="${ep.x.toFixed(1)}" y="${(ep.y+4).toFixed(1)}" text-anchor="middle" font-size="8" fill="white" font-weight="bold" pointer-events="none">F</text>`;
+        opt.fuel_stops.forEach((stop,i)=>{
+            const fp=ll2svg(stop.lat,stop.lon);
+            const ftip=esc(`<b>⛽ Stop ${stop.stop_number}</b><hr><b>${stop.station_name}</b><br>📍 ${stop.city}, ${stop.state}<br>💰 $${stop.price_per_gallon.toFixed(3)}/gal<br>⛽ ${stop.gallons_purchased} gal • $${stop.cost_at_stop.toFixed(2)}<br>📏 ${stop.miles_into_trip} mi into trip`);
+            ml.innerHTML+=`<circle cx="${fp.x.toFixed(1)}" cy="${fp.y.toFixed(1)}" r="15" fill="#f97316" opacity="0"><animate attributeName="r" values="9;18;9" dur="2.5s" begin="${i*0.3}s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.4;0.1;0.4" dur="2.5s" begin="${i*0.3}s" repeatCount="indefinite"/></circle>
+            <circle cx="${fp.x.toFixed(1)}" cy="${fp.y.toFixed(1)}" r="10" fill="#f97316" stroke="white" stroke-width="2" class="map-marker fuel-stop-marker" data-stop="${i}" data-tip="${ftip}" style="cursor:pointer;filter:url(#mglow);"/>
+            <text x="${fp.x.toFixed(1)}" y="${(fp.y+3.5).toFixed(1)}" text-anchor="middle" font-size="8" fill="white" font-weight="bold" pointer-events="none">${stop.stop_number}</text>`;
+        });
+        setTimeout(()=>{
+            document.querySelectorAll('.map-marker').forEach(el=>{
+                el.addEventListener('mouseenter',e=>showTip(e,el.getAttribute('data-tip').replace(/&quot;/g,'"')));
+                el.addEventListener('mousemove',moveTip);el.addEventListener('mouseleave',hideTip);
+            });
+            document.querySelectorAll('.fuel-stop-marker').forEach(el=>{el.addEventListener('click',()=>highlightStop(parseInt(el.getAttribute('data-stop'))));});
+        },100);
+    },900);
+    document.getElementById('mapInfo').textContent=`${trip.start.display_name} → ${trip.finish.display_name}  |  ${trip.distance_miles} mi  |  ${trip.estimated_duration}  |  ${opt.number_of_stops} stops  |  $${opt.total_fuel_cost_usd} total`;
+}
+
+function highlightStop(idx){
+    document.querySelectorAll('.stop-card').forEach((c,i)=>{c.classList.toggle('active',i===idx);if(i===idx)c.scrollIntoView({behavior:'smooth',block:'nearest'});});
+    document.querySelectorAll('.fuel-stop-marker').forEach(el=>{const a=parseInt(el.getAttribute('data-stop'))===idx;el.setAttribute('r',a?'13':'10');el.setAttribute('stroke-width',a?'3':'2');});
+}
+
+// ============================================================
+// HEATMAP
+// ============================================================
+const STATE_PATHS = {
+    'WA':'M148,92 L148,165 L175,172 L205,170 L235,162 L258,168 L272,155 L278,138 L268,128 L220,122 Z',
+    'OR':'M148,165 L148,238 L152,252 L188,248 L222,248 L258,238 L265,205 L258,168 L235,162 L205,170 L175,172 Z',
+    'CA':'M148,252 L152,252 L188,248 L222,248 L238,275 L235,310 L218,348 L198,388 L178,428 L162,435 L145,415 L135,385 L128,335 L130,285 Z',
+    'NV':'M222,248 L258,238 L282,248 L288,295 L275,345 L238,360 L218,348 L235,310 L238,275 Z',
+    'ID':'M258,168 L265,205 L258,238 L282,248 L308,242 L318,218 L322,182 L315,162 L295,155 L272,155 Z',
+    'MT':'M268,128 L278,138 L272,155 L295,155 L315,162 L322,182 L345,182 L385,178 L418,175 L432,162 L440,148 L435,128 Z',
+    'WY':'M322,182 L318,218 L308,242 L318,248 L358,252 L402,248 L408,218 L412,182 L385,178 L345,182 Z',
+    'UT':'M282,248 L308,242 L318,248 L318,322 L298,322 L288,295 Z',
+    'AZ':'M238,360 L275,345 L298,322 L318,322 L322,362 L318,405 L308,432 L278,448 L245,452 L218,428 L208,395 L208,360 Z',
+    'CO':'M318,248 L358,252 L402,248 L408,322 L368,322 L318,322 Z',
+    'NM':'M298,322 L318,322 L368,322 L408,322 L408,408 L322,408 L308,432 L318,405 L322,362 Z',
+    'ND':'M440,148 L432,162 L418,175 L452,172 L498,168 L555,165 L562,148 L558,130 Z',
+    'SD':'M418,175 L412,182 L408,218 L412,252 L458,255 L502,252 L558,248 L562,215 L558,195 L555,165 L498,168 L452,172 Z',
+    'NE':'M412,252 L458,255 L502,252 L558,248 L562,278 L548,292 L485,295 L438,292 L425,275 Z',
+    'KS':'M425,275 L438,292 L485,295 L548,292 L552,315 L542,332 L475,335 L432,332 L422,308 Z',
+    'OK':'M422,308 L432,332 L475,335 L542,332 L548,355 L545,368 L502,372 L458,368 L418,362 L412,335 Z',
+    'TX':'M368,322 L408,322 L408,408 L388,445 L368,458 L342,462 L318,452 L312,432 L308,432 L322,408 L418,362 L412,335 L408,322 Z',
+    'MN':'M558,130 L562,148 L555,165 L562,215 L595,215 L635,212 L648,195 L655,175 L652,152 L642,132 Z',
+    'IA':'M558,248 L562,215 L595,215 L635,212 L645,232 L638,255 L592,258 L558,255 Z',
+    'MO':'M548,292 L558,255 L592,258 L638,255 L645,278 L638,302 L618,318 L578,322 L548,318 L542,332 L548,292 Z',
+    'AR':'M542,332 L548,318 L578,322 L618,318 L625,342 L618,362 L582,368 L548,362 L545,368 L542,332 Z',
+    'LA':'M545,368 L548,362 L582,368 L598,382 L592,405 L565,412 L542,398 L535,378 Z',
+    'WI':'M595,215 L635,212 L648,195 L658,185 L668,195 L665,215 L655,232 L645,232 L638,212 Z',
+    'MI':'M648,195 L655,175 L668,168 L685,172 L695,185 L682,198 L668,195 Z',
+    'IL':'M592,258 L638,255 L645,278 L642,302 L625,315 L608,305 L595,285 L588,265 Z',
+    'IN':'M645,278 L662,275 L672,292 L665,312 L645,315 L638,302 Z',
+    'OH':'M662,275 L682,272 L702,282 L708,302 L698,318 L678,322 L665,312 L672,292 Z',
+    'KY':'M638,302 L645,315 L665,312 L698,318 L705,332 L685,345 L652,348 L622,342 L618,318 Z',
+    'TN':'M618,318 L622,342 L652,348 L685,345 L705,332 L715,348 L698,358 L658,362 L622,358 L602,355 L598,338 Z',
+    'MS':'M582,368 L618,362 L622,382 L615,408 L592,415 L572,402 L575,382 Z',
+    'AL':'M618,362 L658,362 L662,388 L652,415 L632,422 L612,415 L615,408 L622,382 Z',
+    'GA':'M658,362 L698,358 L712,375 L708,402 L692,418 L668,422 L652,415 L662,388 Z',
+    'FL':'M652,415 L668,422 L692,418 L708,432 L718,455 L708,475 L685,482 L658,478 L642,462 L638,438 L642,418 Z',
+    'SC':'M698,358 L722,352 L742,365 L738,382 L718,388 L705,382 L712,375 Z',
+    'NC':'M705,332 L715,322 L748,318 L772,322 L778,335 L762,348 L742,352 L722,352 L715,348 Z',
+    'VA':'M705,308 L722,305 L758,302 L782,312 L778,322 L772,322 L748,318 L715,322 L708,318 L698,318 L705,308 Z',
+    'WV':'M698,318 L708,318 L715,322 L715,348 L705,348 L705,332 Z',
+    'PA':'M702,282 L732,278 L762,275 L778,285 L775,302 L758,302 L722,305 L705,308 L698,308 L708,302 Z',
+    'NY':'M735,252 L778,245 L805,255 L808,268 L788,278 L762,275 L732,278 L722,265 Z',
+    'NJ':'M778,285 L792,282 L798,298 L785,308 L775,302 Z',
+    'MD':'M775,302 L785,308 L788,322 L772,328 L762,322 L762,312 L778,302 Z',
+    'MA':'M788,252 L815,248 L828,258 L825,272 L808,275 L798,268 L805,255 Z',
+    'NH':'M808,235 L828,228 L838,242 L832,258 L815,258 L815,248 Z',
+    'ME':'M828,212 L848,208 L858,225 L852,242 L838,242 L828,228 Z',
+    'AK':'M55,482 L128,482 L140,512 L132,538 L98,548 L65,538 L50,512 Z',
+    'HI':'M172,522 L198,518 L208,532 L198,545 L175,542 Z',
+};
+
+const STATE_LABEL_POS = {
+    'WA':[205,148],'OR':[202,205],'CA':[180,325],'NV':[255,300],'ID':[284,212],'MT':[352,155],
+    'WY':[365,218],'UT':[298,292],'AZ':[265,405],'CO':[362,290],'NM':[348,375],'ND':[498,148],
+    'SD':[498,192],'NE':[489,278],'KS':[485,312],'OK':[480,348],'TX':[370,400],'MN':[602,195],
+    'IA':[598,238],'MO':[592,292],'AR':[582,348],'LA':[562,392],'WI':[638,195],'MI':[675,188],
+    'IL':[615,288],'IN':[652,298],'OH':[682,302],'KY':[658,330],'TN':[655,342],'MS':[595,392],
+    'AL':[632,395],'GA':[672,392],'FL':[672,452],'SC':[718,378],'NC':[735,338],'VA':[738,318],
+    'WV':[700,315],'PA':[740,292],'NY':[762,262],'NJ':[790,295],'MD':[780,315],'MA':[808,262],
+    'NH':[825,238],'ME':[840,228],'AK':[90,518],'HI':[188,535],
+};
+
+function priceToColor(price, minP, maxP) {
+    const t = (price - minP) / (maxP - minP);
+    const r = Math.round(34 + (239-34)*t);
+    const g = Math.round(197 - (197-68)*t);
+    const b = Math.round(94 - (94-68)*t);
+    return `rgb(${r},${g},${b})`;
+}
+
+async function loadHeatmap() {
+    window.heatmapLoaded = true;
+    try {
+        const res = await fetch('/api/fuel-ranking/');
+        const data = await res.json();
+        if (!data.success) return;
+        const rankings = data.rankings;
+        const prices = rankings.map(r => r.avg_price);
+        const minP = Math.min(...prices), maxP = Math.max(...prices);
+
+        const svgEl = document.getElementById('heatmapSvg');
+        let html = `<defs><radialGradient id="hbg" cx="50%" cy="50%" r="70%"><stop offset="0%" style="stop-color:#0d1b2e"/><stop offset="100%" style="stop-color:#060e1a"/></radialGradient></defs>`;
+        html += `<rect width="960" height="580" fill="url(#hbg)"/>`;
+
+        // Draw colored states
+        rankings.forEach(r => {
+            const path = STATE_PATHS[r.state];
+            if (!path) return;
+            const color = priceToColor(r.avg_price, minP, maxP);
+            const tip = `${r.state}: $${r.avg_price.toFixed(3)}/gal avg | Rank #${r.rank} of ${data.total_states}`;
+            html += `<path d="${path}" fill="${color}" stroke="#0f172a" stroke-width="1" opacity="0.9" style="cursor:pointer;" data-tip="${tip}" class="hmap-state"/>`;
+        });
+
+        // Labels
+        html += `<g font-family="'Segoe UI',sans-serif" text-anchor="middle" font-size="7" fill="white" font-weight="600" opacity="0.9">`;
+        Object.entries(STATE_LABEL_POS).forEach(([st, [x,y]]) => {
+            const r = rankings.find(r=>r.state===st);
+            if (r) html += `<text x="${x}" y="${y}">${st}</text>`;
+        });
+        html += `</g>`;
+
+        // Legend
+        html += `<text x="480" y="570" text-anchor="middle" font-family="'Segoe UI',sans-serif" font-size="9" fill="#64748b">Cheapest $${minP.toFixed(3)} — Most Expensive $${maxP.toFixed(3)} — Overall Average $${data.overall_average_price}/gal</text>`;
+
+        svgEl.innerHTML = html;
+        document.getElementById('heatmapLoading').style.display = 'none';
+        svgEl.style.display = 'block';
+
+        // Tooltip events
+        setTimeout(() => {
+            document.querySelectorAll('.hmap-state').forEach(el => {
+                el.addEventListener('mouseenter', e => {
+                    const t = document.getElementById('tooltip');
+                    t.innerHTML = el.getAttribute('data-tip');
+                    t.style.display = 'block';
+                    const r = document.getElementById('heatmapPanel').getBoundingClientRect();
+                    t.style.left = (e.clientX-r.left+10)+'px';
+                    t.style.top = (e.clientY-r.top-10)+'px';
+                });
+                el.addEventListener('mousemove', e => {
+                    const t = document.getElementById('tooltip');
+                    const r = document.getElementById('heatmapPanel').getBoundingClientRect();
+                    t.style.left = (e.clientX-r.left+10)+'px';
+                    t.style.top = (e.clientY-r.top-10)+'px';
+                });
+                el.addEventListener('mouseleave', () => document.getElementById('tooltip').style.display='none');
+            });
+        }, 100);
+
+    } catch(e) {
+        document.getElementById('heatmapLoading').textContent = 'Failed to load heatmap data.';
+    }
+}
+
+// ============================================================
+// RANKING TABLE
+// ============================================================
+async function loadRanking() {
+    window.rankingLoaded = true;
+    try {
+        const res = await fetch('/api/fuel-ranking/');
+        const data = await res.json();
+        if (!data.success) return;
+        rankingData = data.rankings;
+        const avg = data.overall_average_price;
+        renderRankingTable(rankingData, avg);
+        document.getElementById('rankingLoading').style.display = 'none';
+        document.getElementById('rankingTable').style.display = 'block';
+        window._rankAvg = avg;
+    } catch(e) {
+        document.getElementById('rankingLoading').textContent = 'Failed to load rankings.';
+    }
+}
+
+function renderRankingTable(data, avg) {
+    const maxP = Math.max(...data.map(r=>r.avg_price));
+    const minP = Math.min(...data.map(r=>r.avg_price));
+    const body = document.getElementById('rankingBody');
+    body.innerHTML = data.map(r => {
+        const medal = r.rank===1?'🥇':r.rank===2?'🥈':r.rank===3?'🥉':'';
+        const barW = Math.round(((r.avg_price-minP)/(maxP-minP))*100);
+        const barColor = r.rank<=10?'#22c55e':r.rank>=data.length-9?'#ef4444':'#3b82f6';
+        const diff = (r.avg_price - avg).toFixed(3);
+        const tag = r.rank<=5?`<span class="tag-cheap">TOP 5</span>`:r.rank>=data.length-4?`<span class="tag-exp">COSTLY</span>`:'';
+        return `<tr>
+            <td><span class="rank-medal">${medal}</span>${r.rank}</td>
+            <td><b>${r.state}</b> ${tag}</td>
+            <td><b>$${r.avg_price.toFixed(3)}</b></td>
+            <td><div class="price-bar-wrap"><div class="price-bar" style="width:${barW}px;background:${barColor};"></div><span style="font-size:0.65rem;color:#64748b;">$${r.min_price}–$${r.max_price}</span></div></td>
+            <td style="color:#64748b;">${r.station_count}</td>
+            <td style="color:${diff>0?'#f87171':'#4ade80'}">${diff>0?'+':''}${diff}</td>
+        </tr>`;
+    }).join('');
+}
+
+function filterRanking() {
+    const q = document.getElementById('rankSearch').value.trim().toUpperCase();
+    const filtered = q ? rankingData.filter(r => r.state.includes(q)) : rankingData;
+    renderRankingTable(filtered, window._rankAvg || 0);
+}
+
+// ============================================================
+// MAIN ROUTE PLANNING
+// ============================================================
+function setRoute(s,f){document.getElementById('start').value=s;document.getElementById('finish').value=f;}
+
+async function planRoute() {
+    const start=document.getElementById('start').value.trim();
+    const finish=document.getElementById('finish').value.trim();
+    if(!start||!finish){showError('Please enter both start and finish locations.');return;}
+    document.getElementById('loading').style.display='block';
+    document.getElementById('results').style.display='none';
+    document.getElementById('errorBox').style.display='none';
+    document.getElementById('planBtn').disabled=true;
+    document.getElementById('mapInfo').textContent='Calculating optimal route...';
+    clearMap();
+    try {
+        const res=await fetch(`/api/route/?start=${encodeURIComponent(start)}&finish=${encodeURIComponent(finish)}`);
+        const data=await res.json();
+        if(!data.success){showError(data.error||'Something went wrong.');return;}
+        lastRouteData=data;
+        renderSidebar(data);
+        drawMap(data);
+        switchTab('map');
+    } catch(e){showError('Network error. Make sure the server is running.');}
+    finally{document.getElementById('loading').style.display='none';document.getElementById('planBtn').disabled=false;}
+}
+
+function renderSidebar(data){
+    const trip=data.trip,opt=data.fuel_optimization,sum=data.summary;
+    document.getElementById('sumDistance').textContent=trip.distance_miles+' mi';
+    document.getElementById('sumDuration').textContent=trip.estimated_duration;
+    document.getElementById('sumCost').textContent=sum.total_fuel_cost;
+    document.getElementById('sumSavings').textContent='$'+opt.estimated_savings_vs_avg_usd;
+    document.getElementById('sumStops').textContent=opt.number_of_stops;
+    document.getElementById('sumGallons').textContent=opt.total_gallons_needed+' gal';
+    document.getElementById('procTime').textContent=`⚡ Processed in ${data.processing_time_seconds}s`;
+    const c=document.getElementById('stopsContainer');c.innerHTML='';
+    if(!opt.fuel_stops.length){c.innerHTML='<div style="color:#64748b;text-align:center;padding:12px;">No stops needed!</div>';}
+    else{
+        opt.fuel_stops.forEach((stop,idx)=>{
+            const tp=Math.max(10,100-(stop.miles_into_trip%500)/5);
+            const tc=tp>50?'#22c55e':tp>25?'#f97316':'#ef4444';
+            const alt=stop.nearby_alternatives&&stop.nearby_alternatives.length
+                ?`<div class="alternatives"><div class="alt-title">📍 Alternatives</div>${stop.nearby_alternatives.map(a=>`<div class="alt-item"><span>${a.name}, ${a.city}</span><span class="alt-price">$${a.price.toFixed(3)}</span></div>`).join('')}</div>`:'';
+            c.innerHTML+=`<div class="stop-card" onclick="highlightStop(${idx})">
+                <div class="stop-num-badge">${stop.stop_number}</div>
+                <div class="stop-name">⛽ ${stop.station_name}</div>
+                <div class="stop-loc">📍 ${stop.city}, ${stop.state} — ${stop.address}</div>
+                <div class="stop-details">
+                    <div class="stop-detail"><div class="val">$${stop.price_per_gallon.toFixed(3)}</div><div class="lbl">Per Gal</div></div>
+                    <div class="stop-detail"><div class="val">${stop.gallons_purchased}</div><div class="lbl">Gallons</div></div>
+                    <div class="stop-detail"><div class="val">$${stop.cost_at_stop.toFixed(2)}</div><div class="lbl">Cost</div></div>
+                </div>
+                <div class="stop-details" style="margin-top:4px;">
+                    <div class="stop-detail"><div class="val">${stop.miles_into_trip}</div><div class="lbl">Mi In</div></div>
+                    <div class="stop-detail"><div class="val">${stop.miles_remaining}</div><div class="lbl">Mi Left</div></div>
+                    <div class="stop-detail"><div class="val" style="color:${tc}">${Math.round(tp)}%</div><div class="lbl">Tank</div></div>
+                </div>
+                <div class="tank-bar"><div class="tank-fill" style="width:${tp}%;background:${tc};"></div></div>
+                <div class="tank-lbl">Estimated tank level at this stop</div>
+                ${alt}
+            </div>`;
+        });
+    }
+    document.getElementById('results').style.display='block';
+}
+
+function showError(msg){document.getElementById('errorBox').textContent='❌ '+msg;document.getElementById('errorBox').style.display='block';document.getElementById('loading').style.display='none';document.getElementById('mapInfo').textContent='Enter locations and click Plan Optimal Route';}
+document.addEventListener('keydown',e=>{if(e.key==='Enter')planRoute();});
+</script>
+</body>
+</html>

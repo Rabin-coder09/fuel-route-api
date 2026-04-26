@@ -39,7 +39,7 @@ ROOT_URLCONF = 'fuel_route.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'route_planner' / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
