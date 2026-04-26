@@ -13,6 +13,8 @@ A production-ready Django REST API that plans the most cost-effective fuel stops
 
 - ✅ Optimal fuel stop planning based on real fuel prices from 8000+ stations
 - ✅ 500-mile vehicle range with smart multi-stop strategy
+- ✅ Interactive SVG map with route visualization and clickable
+fuel stop markers
 - ✅ Cost calculation at 10 MPG with savings vs average prices
 - ✅ Alternative fuel stations shown at each stop
 - ✅ Full route geometry for map visualization
@@ -73,6 +75,16 @@ Docs at http://127.0.0.1:8000/api/docs/
 | GET | `/api/schema/` | OpenAPI 3.0 schema |
 
 ---
+## 🗺️ Interactive Web Interface
+
+Visit `http://127.0.0.1:8000` in your browser for the full interactive experience:
+
+- **Route Map** — Plan route and see fuel stops on live map
+- **Price Heatmap** — See fuel prices across all USA states
+- **State Rankings** — Compare cheapest states for fuel
+- **Quick Routes** — One-click popular US routes
+- **Tank Level Indicator** — See fuel level at each stop
+- **Nearby Alternatives** — Compare stations at each stop
 
 ## 🗺️ Route Planner Usage
 
